@@ -44,13 +44,40 @@ class _SignupPageState extends State<SignupPage> {
       if (user != null) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage(userEmail: user.email ?? "Unknown")),
+          MaterialPageRoute(
+            builder: (context) => HomePage(userEmail: user.email ?? "Unknown"),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Signup failed. Try again.')),
         );
       }
+    }
+  }
+
+  void _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    User? user = await _authService.signInWithGoogle();
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (user != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(userEmail: user.email ?? "Unknown"),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google sign-in failed. Try again.')),
+      );
     }
   }
 
@@ -90,6 +117,28 @@ class _SignupPageState extends State<SignupPage> {
                     child: _isLoading ? const CircularProgressIndicator() : const Text('Sign Up'),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text("Or sign up with", style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: _isLoading ? null : _signInWithGoogle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/google_logo.png', height: 24),
+                    const SizedBox(width: 10),
+                    const Text('Sign Up with Google', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 10),
