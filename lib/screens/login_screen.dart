@@ -1,4 +1,6 @@
-import 'package:firebase_initial/screens/signup_screen.dart';
+import 'package:firebase_initial/auth.dart';
+import 'package:firebase_initial/screens/homepage.dart';
+import 'package:firebase_initial/screens/signup_screen.dart'; // Import your AuthService
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,6 +16,10 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _rememberMe = false;
+  String? _errorMessage;
+  
+  // Create an instance of your AuthService
+  final AuthService authService = AuthService();
 
   @override
   void dispose() {
@@ -22,42 +28,132 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _signInWithEmail() {
+  Future<void> _signInWithEmail() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
       
-      // Simulate network request
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        // Use the AuthService to login with email and password
+        final user = await authService.logInWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        
+        if (user != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login successful!')),
+          );
+          
+          // Navigate to HomePage and remove previous routes from the stack
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => HomePage(
+                userEmail: user.email ?? 'User', authService: authService,
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_errorMessage ?? 'An error occurred')),
+        );
+      } finally {
         setState(() {
           _isLoading = false;
         });
-        
-        // Here you would normally handle the authentication logic
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      // Use the AuthService to sign in with Google
+      final user = await authService.signInWithGoogle();
+      
+      if (user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful!')),
+          const SnackBar(content: Text('Google login successful!')),
         );
+        
+        // Navigate to HomePage and remove previous routes from the stack
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(
+              userEmail: user.email ?? 'Google User', authService: authService,
+            ),
+          ),
+        );
+      } else {
+        // User cancelled the Google sign-in flow
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google login cancelled')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage ?? 'An error occurred')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
       });
     }
   }
 
-  void _signInWithGoogle() {
+  Future<void> _resetPassword() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email to reset password'),
+        ),
+      );
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
     
-    // Simulate network request
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      await authService.resetPassword(email: _emailController.text.trim());
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent. Check your inbox.'),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage ?? 'An error occurred')),
+      );
+    } finally {
       setState(() {
         _isLoading = false;
       });
-      
-      // Here you would normally handle the Google auth logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google login initiated!')),
-      );
-    });
+    }
   }
 
   @override
@@ -99,6 +195,21 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                
+                // Display error message if any
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(color: Colors.red.shade900),
+                    ),
+                  ),
                 
                 // Email Login Form
                 Form(
@@ -159,9 +270,7 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
                           TextButton(
-                            onPressed: () {
-                              // Navigate to forgot password page
-                            },
+                            onPressed: _resetPassword,
                             child: const Text('Forgot Password?'),
                           ),
                         ],
@@ -214,7 +323,10 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  icon: Image.asset(
+                    'assets/google_logo.png',
+                    height: 24,
+                  ), // Replace with your Google logo asset
                   label: const Text('Login with Google'),
                 ),
                 
@@ -233,7 +345,6 @@ class _LoginPageState extends State<LoginPage> {
                             builder: (context) => const SignupPage(),
                           ),
                         );
-                        // Navigate to signup page
                       },
                       child: const Text('Sign Up'),
                     ),

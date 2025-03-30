@@ -1,5 +1,7 @@
+import 'package:firebase_initial/auth.dart';
+import 'package:firebase_initial/screens/homepage.dart';
 import 'package:firebase_initial/screens/login_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 
 class SignupPage extends StatefulWidget {
   const SignupPage({Key? key}) : super(key: key);
@@ -14,6 +16,10 @@ class _SignupPageState extends State<SignupPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  String? _errorMessage;
+
+  // Create an instance of your AuthService
+  final AuthService authService = AuthService();
 
   @override
   void dispose() {
@@ -23,43 +29,93 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  void _signUpWithEmail() {
+  Future<void> _signUpWithEmail() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
       
-      // Simulate network request
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        // Use the AuthService to sign up with email and password
+        final user = await authService.signUpWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        
+        if (user != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Signup successful!')),
+          );
+          
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_errorMessage ?? 'An error occurred')),
+        );
+      } finally {
         setState(() {
           _isLoading = false;
         });
-        
-        // Here you would normally handle the authentication logic
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Signup successful!')),
-        );
-      });
+      }
     }
   }
+  
 
-  void _signUpWithGoogle() {
+Future<void> _signUpWithGoogle() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+  
+  try {
+    // Use the AuthService to sign in with Google
+    final user = await authService.signInWithGoogle();
+    
+    if (user != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google sign-in successful!')),
+      );
+      
+      // Navigate to HomePage with required arguments
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            userEmail: user.email ?? 'No email available',
+            authService: authService,
+          ),
+        ),
+      );
+    } else {
+      // User cancelled the Google sign-in flow
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google sign-in cancelled')),
+      );
+    }
+  } catch (e) {
     setState(() {
-      _isLoading = true;
+      _errorMessage = e.toString();
     });
     
-    // Simulate network request
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        _isLoading = false;
-      });
-      
-      // Here you would normally handle the Google auth logic
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Google signup initiated!')),
-      );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_errorMessage ?? 'An error occurred')),
+    );
+  } finally {
+    setState(() {
+      _isLoading = false;
     });
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +156,21 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                
+                // Display error message if any
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(color: Colors.red.shade900),
+                    ),
+                  ),
                 
                 // Email Signup Form
                 Form(
@@ -208,7 +279,10 @@ class _SignupPageState extends State<SignupPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  icon: Image.asset(
+                    'assets/google_logo.png',
+                    height: 24,
+                  ), // Replace with your Google logo asset
                   label: const Text('Sign up with Google'),
                 ),
                 

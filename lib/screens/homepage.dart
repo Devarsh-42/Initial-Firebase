@@ -1,11 +1,16 @@
+import 'package:firebase_initial/auth.dart';
+import 'package:firebase_initial/screens/login_screen.dart';
+import 'package:firebase_initial/widget/activity_items_widget.dart';
 import 'package:flutter/material.dart';
 
 class HomePage extends StatelessWidget {
   final String userEmail;
-  
+  final AuthService authService; // Add AuthService
+
   const HomePage({
-    Key? key, 
+    Key? key,
     required this.userEmail,
+    required this.authService, // Require AuthService in constructor
   }) : super(key: key);
 
   @override
@@ -24,10 +29,11 @@ class HomePage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
+            icon:
+                const Icon(Icons.notifications_outlined, color: Colors.black87),
             onPressed: () {},
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const CircleAvatar(
               radius: 14,
               backgroundColor: Colors.blue,
@@ -36,9 +42,48 @@ class HomePage extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
-            onPressed: () {
-              // Open profile or account settings
+            onSelected: (value) async {
+              if (value == 'signout') {
+                try {
+                  await authService.signOut();
+                  // Navigate to login screen after sign out
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginPage(),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error signing out: $e')),
+                  );
+                }
+              } else if (value == 'profile') {
+                // Handle profile action
+              }
             },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'signout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Sign Out'),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 8),
         ],
@@ -131,7 +176,7 @@ class HomePage extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Quick Actions
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -164,18 +209,29 @@ class HomePage extends StatelessWidget {
                       const SizedBox(width: 16),
                       _buildQuickActionCard(
                         context,
-                        icon: Icons.help_outline,
-                        title: 'Help',
-                        color: Colors.purple,
+                        icon: Icons.logout,
+                        title: 'Sign Out',
+                        color: Colors.red,
+                        onTap: () async {
+                          try {
+                            await authService.signOut();
+                            Navigator.of(context)
+                                .pushReplacementNamed('/login');
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error signing out: $e')),
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Activity Section
             Expanded(
               child: Container(
@@ -189,38 +245,11 @@ class HomePage extends StatelessWidget {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Recent Activity',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildActivityItem(
-                        icon: Icons.login,
-                        title: 'Logged in successfully',
-                        subtitle: 'Just now',
-                        color: Colors.blue,
-                      ),
-                      const Divider(),
-                      _buildActivityItem(
-                        icon: Icons.edit,
-                        title: 'Profile updated',
-                        subtitle: '2 days ago',
-                        color: Colors.orange,
-                      ),
-                      const Divider(),
-                      _buildActivityItem(
-                        icon: Icons.settings,
-                        title: 'Settings changed',
-                        subtitle: '1 week ago',
-                        color: Colors.green,
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [ActivityItemsWidget()],
+                    ),
                   ),
                 ),
               ),
@@ -252,102 +281,53 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildQuickActionCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {},
-        child: Container(
-          height: 100,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
+}
+
+Widget _buildQuickActionCard(
+  BuildContext context, {
+  required IconData icon,
+  required String title,
+  required Color color,
+  VoidCallback? onTap,
+}) {
+  return Expanded(
+    child: GestureDetector(
+      onTap: onTap ?? () {},
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-  
-  Widget _buildActivityItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.arrow_forward_ios,
-            size: 14,
-            color: Colors.grey.shade400,
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }
